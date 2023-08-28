@@ -38,7 +38,6 @@ class SimpleWeaponSerializer(serializers.ModelSerializer):
     class Meta:
         model = Weapon
         fields = [
-            'id',
             'name',
             'detail_view'
         ]
@@ -64,7 +63,6 @@ class SimpleArmorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Armor
         fields = [
-            'id',
             'name',
             'detail_view'
         ]
@@ -83,29 +81,48 @@ class ArmorSerializer(serializers.ModelSerializer):
         model = Armor
         fields = '__all__'
 
+class WritableNestedArmorSerializer(serializers.PrimaryKeyRelatedField):
+    def __init__(self, armor_slot=None, **kwargs):
+        self.slot = armor_slot
+        super().__init__(**kwargs)
 
-class CharacterSerializer(serializers.ModelSerializer):
-    job = SimpleJobSerializer(many=False, read_only=True)
+    def get_queryset(self):
+        character = self.parent.instance
+        queryset = Armor.objects.filter(
+            armor_type__jobs_can_equip=character.job
+        )
+
+        if self.slot is not None:
+            queryset = queryset.filter(armor_slot=self.slot)
+
+        return queryset
+    
+
+class WritableNestedWeaponSerializer(serializers.PrimaryKeyRelatedField):
+    def get_queryset(self):
+        character = self.parent.instance
+        queryset = Weapon.objects.filter(
+            weapon_type__jobs_can_equip=character.job
+        )
+
+        return queryset
+    
+class SimpleCharacterSerializer(serializers.ModelSerializer):
+    job = serializers.PrimaryKeyRelatedField(
+        queryset=Job.objects.all())
+    job_details = SimpleJobSerializer(many=False, read_only=True)
+
     stats = serializers.SerializerMethodField()
-    weapon = SimpleWeaponSerializer(read_only=True)
-    head = SimpleArmorSerializer(read_only=True)
-    body = SimpleArmorSerializer(read_only=True)
-    hands = SimpleArmorSerializer(read_only=True)
-    feet = SimpleArmorSerializer(read_only=True)
 
     class Meta:
         model = Character
         fields = [
             'id',
             'job',
+            'job_details',
             'name',
             'description',
             'stats',
-            'weapon',
-            'head',
-            'body',
-            'hands',
-            'feet',
             'experience_points',
             'level'
         ]
@@ -125,3 +142,79 @@ class CharacterSerializer(serializers.ModelSerializer):
             'evasion': obj.evasion,
             'speed': obj.speed
         }
+
+class CharacterSerializer(serializers.ModelSerializer):
+    job = serializers.PrimaryKeyRelatedField(
+        queryset=Job.objects.all())
+    job_details = SimpleJobSerializer(many=False, read_only=True)
+
+    stats = serializers.SerializerMethodField()
+
+    weapon = WritableNestedWeaponSerializer()
+    weapon_details = serializers.SerializerMethodField()
+
+    head = WritableNestedArmorSerializer(armor_slot=Armor.ArmorSlot.HEAD)
+    head_details = serializers.SerializerMethodField()
+
+    body = WritableNestedArmorSerializer(armor_slot=Armor.ArmorSlot.BODY)
+    body_details = serializers.SerializerMethodField()
+
+    hands = WritableNestedArmorSerializer(armor_slot=Armor.ArmorSlot.HANDS)
+    hands_details = serializers.SerializerMethodField()
+
+    feet = WritableNestedArmorSerializer(armor_slot=Armor.ArmorSlot.FEET)
+    feet_details = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Character
+        fields = [
+            'id',
+            'job',
+            'job_details',
+            'name',
+            'description',
+            'stats',
+            'weapon',
+            'weapon_details',
+            'head',
+            'head_details',
+            'body',
+            'body_details',
+            'hands',
+            'hands_details',
+            'feet',
+            'feet_details',
+            'experience_points',
+            'level'
+        ]
+
+    def get_stats(self, obj):
+        return {
+            'strength': obj.strength,
+            'dexterity': obj.dexterity,
+            'agility': obj.agility,
+            'vitality': obj.vitality,
+            'intelligence': obj.intelligence,
+            'mind': obj.mind,
+            'attack': obj.attack,
+            'defense': obj.defense,
+            'magic': obj.magic,
+            'accuracy': obj.accuracy,
+            'evasion': obj.evasion,
+            'speed': obj.speed
+        }
+    
+    def get_weapon_details(self, obj: Character) -> dict:
+        return SimpleWeaponSerializer(obj.weapon, context=self.context).data
+
+    def get_head_details(self, obj: Character) -> dict:
+        return SimpleArmorSerializer(obj.head, context=self.context).data
+
+    def get_body_details(self, obj: Character) -> dict:
+        return SimpleArmorSerializer(obj.body, context=self.context).data
+
+    def get_hands_details(self, obj: Character) -> dict:
+        return SimpleArmorSerializer(obj.hands, context=self.context).data
+
+    def get_feet_details(self, obj: Character) -> dict:
+        return SimpleArmorSerializer(obj.feet, context=self.context).data

@@ -12,7 +12,8 @@ from .serializers import (
     SimpleWeaponSerializer,
     WeaponSerializer,
     SimpleArmorSerializer,
-    ArmorSerializer
+    ArmorSerializer,
+    SimpleCharacterSerializer
 )
 
 # Create your views here.
@@ -45,7 +46,7 @@ class ArmorDetailView(generics.RetrieveAPIView):
 
 class CharacterListView(generics.ListCreateAPIView):
     queryset = Character.objects.all()
-    serializer_class = CharacterSerializer
+    serializer_class = SimpleCharacterSerializer
 
 class CharacterDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Character.objects.all()
