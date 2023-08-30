@@ -81,7 +81,7 @@ class ArmorSerializer(serializers.ModelSerializer):
         model = Armor
         fields = '__all__'
 
-class WritableNestedArmorSerializer(serializers.PrimaryKeyRelatedField):
+class DynamicArmorSerializer(serializers.PrimaryKeyRelatedField):
     def __init__(self, armor_slot=None, **kwargs):
         self.slot = armor_slot
         super().__init__(**kwargs)
@@ -98,7 +98,7 @@ class WritableNestedArmorSerializer(serializers.PrimaryKeyRelatedField):
         return queryset
     
 
-class WritableNestedWeaponSerializer(serializers.PrimaryKeyRelatedField):
+class DynamicWeaponSerializer(serializers.PrimaryKeyRelatedField):
     def get_queryset(self):
         character = self.parent.instance
         queryset = Weapon.objects.filter(
@@ -144,25 +144,22 @@ class SimpleCharacterSerializer(serializers.ModelSerializer):
         }
 
 class CharacterSerializer(serializers.ModelSerializer):
-    job = serializers.PrimaryKeyRelatedField(
-        queryset=Job.objects.all())
-    job_details = SimpleJobSerializer(many=False, read_only=True)
-
+    job_details = serializers.SerializerMethodField()
     stats = serializers.SerializerMethodField()
 
-    weapon = WritableNestedWeaponSerializer()
+    weapon = DynamicWeaponSerializer()
     weapon_details = serializers.SerializerMethodField()
 
-    head = WritableNestedArmorSerializer(armor_slot=Armor.ArmorSlot.HEAD)
+    head = DynamicArmorSerializer(armor_slot=Armor.ArmorSlot.HEAD)
     head_details = serializers.SerializerMethodField()
 
-    body = WritableNestedArmorSerializer(armor_slot=Armor.ArmorSlot.BODY)
+    body = DynamicArmorSerializer(armor_slot=Armor.ArmorSlot.BODY)
     body_details = serializers.SerializerMethodField()
 
-    hands = WritableNestedArmorSerializer(armor_slot=Armor.ArmorSlot.HANDS)
+    hands = DynamicArmorSerializer(armor_slot=Armor.ArmorSlot.HANDS)
     hands_details = serializers.SerializerMethodField()
 
-    feet = WritableNestedArmorSerializer(armor_slot=Armor.ArmorSlot.FEET)
+    feet = DynamicArmorSerializer(armor_slot=Armor.ArmorSlot.FEET)
     feet_details = serializers.SerializerMethodField()
 
     class Meta:
@@ -203,6 +200,9 @@ class CharacterSerializer(serializers.ModelSerializer):
             'evasion': obj.evasion,
             'speed': obj.speed
         }
+    
+    def get_job_details(self, obj: Character) -> dict:
+        return SimpleJobSerializer(obj.job, context=self.context).data
     
     def get_weapon_details(self, obj: Character) -> dict:
         return SimpleWeaponSerializer(obj.weapon, context=self.context).data
